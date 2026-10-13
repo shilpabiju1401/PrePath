@@ -28,7 +28,15 @@ public class Judge0Service {
     @Value("${app.judge0.ce-url:https://ce.judge0.com}")
     private String ceUrl;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
+
+    public Judge0Service() {
+        org.springframework.http.client.SimpleClientHttpRequestFactory factory =
+                new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(8000);
+        factory.setReadTimeout(15000);
+        this.restTemplate = new RestTemplate(factory);
+    }
 
     public static class ExecutionResult {
         public String status;
@@ -74,6 +82,8 @@ public class Judge0Service {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) PrepPath/1.0");
+            headers.set("Accept", "application/json");
 
             if (key != null && !key.isBlank()) {
                 headers.set("X-RapidAPI-Key", key);
