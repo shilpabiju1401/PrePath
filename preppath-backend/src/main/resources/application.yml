@@ -1,0 +1,49 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: preppath-backend
+
+  datasource:
+    # Neon PostgreSQL if configured via .env — otherwise uses persistent file-based H2 for local dev
+    url:             ${SPRING_DATASOURCE_URL:jdbc:h2:file:./data/preppathdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;AUTO_SERVER=TRUE}
+    username:        ${SPRING_DATASOURCE_USERNAME:sa}
+    password:        ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER:org.h2.Driver}
+
+  jpa:
+    hibernate:
+      ddl-auto: none      # Flyway manages the schema — JPA must NOT recreate tables
+    show-sql: false
+    open-in-view: false   # Suppress the open-in-view warning
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled:             true
+    baseline-on-migrate: true
+    locations:           classpath:db/migration
+    repair-on-migrate:   true   # Auto-repair failed migrations so DB is never corrupted
+
+  # H2 web console for local development (access at http://localhost:8080/h2-console)
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+# Application-level settings (all secrets come from .env / environment variables)
+app:
+  jwt:
+    secret: ${JWT_SECRET:PrepPathSuperSecretSecureKeyForJwtTokenGeneration2026!}
+    expiration-ms: 86400000   # 24 hours
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+  judge0:
+    api-url: ${JUDGE0_API_URL:https://judge0-ce.p.rapidapi.com}
+    api-key: ${JUDGE0_API_KEY:}
+  ai:
+    api-url: ${AI_API_URL:https://api.openai.com/v1/chat/completions}
+    api-key: ${AI_API_KEY:}
+    model: ${AI_MODEL:gpt-4o-mini}

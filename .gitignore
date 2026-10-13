@@ -1,0 +1,23 @@
+# Node
+node_modules/
+dist/
+
+# Java
+target/
+*.class
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+
+# Secrets
+.env
+*.local
+
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules/
+**/dist/
+**/target/
