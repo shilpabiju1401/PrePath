@@ -34,6 +34,14 @@ export default function CodingTopicLearnPage() {
   const [nextLoading, setNextLoading] = useState(false);
   const [nextXpPopup, setNextXpPopup] = useState(null); // null | { xpAwarded, alreadyCompleted }
 
+  const getExampleCode = (topicData, lang) => {
+    if (!topicData?.codeExamples) return '';
+    const example = topicData.codeExamples.find(
+      (e) => e.language?.toLowerCase() === lang?.toLowerCase()
+    );
+    return example?.code ?? '';
+  };
+
   const fetchTopic = async () => {
     setLoading(true);
     setError(null);
@@ -43,7 +51,8 @@ export default function CodingTopicLearnPage() {
     try {
       const res = await api.get(`/coding/topics/${topicId}`);
       setTopic(res.data);
-      setUserCode('');
+      // Pre-fill editor with the example code for the active language
+      setUserCode(getExampleCode(res.data, activeLang));
     } catch (err) {
       console.error('Failed to load topic:', err);
       const msg = err.response?.data?.message || err.message || 'Failed to load topic.';
@@ -59,7 +68,8 @@ export default function CodingTopicLearnPage() {
 
   const handleLangChange = (lang) => {
     setActiveLang(lang);
-    setUserCode('');
+    // Pre-fill editor with the example code for the newly selected language
+    setUserCode(getExampleCode(topic, lang));
   };
 
   // ── Run Code ──────────────────────────────────────────────────────────────

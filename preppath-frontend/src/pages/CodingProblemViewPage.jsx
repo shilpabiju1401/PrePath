@@ -20,13 +20,21 @@ export default function CodingProblemViewPage() {
   const [submissionResult, setSubmissionResult] = useState(null);
   const [activeTab, setActiveTab] = useState('description');
 
+  const getStarterCode = (problemData, lang) => {
+    if (!problemData) return '';
+    if (lang === 'c')      return problemData.starterCodeC      ?? '';
+    if (lang === 'java')   return problemData.starterCodeJava   ?? '';
+    if (lang === 'python') return problemData.starterCodePython ?? '';
+    return '';
+  };
+
   useEffect(() => {
     const fetchProblem = async () => {
       try {
         const res = await api.get(`/coding/problems/${problemId}`);
         setProblem(res.data);
-        // Leave code blank so user can type freshly
-        setCode('');
+        // Pre-fill with starter code for the current language
+        setCode(getStarterCode(res.data, language));
         setCustomInput(res.data.sampleInput || '');
       } catch (err) {
         console.error('Failed to load problem:', err);
@@ -37,8 +45,8 @@ export default function CodingProblemViewPage() {
 
   const handleLanguageChange = (newLang) => {
     setLanguage(newLang);
-    // Keep editor blank on language change as well
-    setCode('');
+    // Switch starter code for the newly selected language
+    setCode(getStarterCode(problem, newLang));
   };
 
   const handleRun = async () => {
