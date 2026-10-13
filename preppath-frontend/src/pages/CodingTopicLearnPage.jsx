@@ -34,14 +34,6 @@ export default function CodingTopicLearnPage() {
   const [nextLoading, setNextLoading] = useState(false);
   const [nextXpPopup, setNextXpPopup] = useState(null); // null | { xpAwarded, alreadyCompleted }
 
-  const getExampleCode = (topicData, lang) => {
-    if (!topicData?.codeExamples) return '';
-    const example = topicData.codeExamples.find(
-      (e) => e.language?.toLowerCase() === lang?.toLowerCase()
-    );
-    return example?.code ?? '';
-  };
-
   const fetchTopic = async () => {
     setLoading(true);
     setError(null);
@@ -51,8 +43,7 @@ export default function CodingTopicLearnPage() {
     try {
       const res = await api.get(`/coding/topics/${topicId}`);
       setTopic(res.data);
-      // Pre-fill editor with the example code for the active language
-      setUserCode(getExampleCode(res.data, activeLang));
+      setUserCode(''); // keep editor blank — user writes their own code
     } catch (err) {
       console.error('Failed to load topic:', err);
       const msg = err.response?.data?.message || err.message || 'Failed to load topic.';
@@ -68,8 +59,7 @@ export default function CodingTopicLearnPage() {
 
   const handleLangChange = (lang) => {
     setActiveLang(lang);
-    // Pre-fill editor with the example code for the newly selected language
-    setUserCode(getExampleCode(topic, lang));
+    setUserCode(''); // keep editor blank on language switch
   };
 
   // ── Run Code ──────────────────────────────────────────────────────────────
@@ -363,40 +353,61 @@ export default function CodingTopicLearnPage() {
             </div>
           )}
 
-          {/* Output Panel */}
-          {runResult && (
+          {/* Output Panel — always shown after run attempt or while running */}
+          {(running || runResult) && (
             <div className="rounded-2xl bg-slate-900 p-4 text-xs font-mono text-slate-200 space-y-2">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <span className="font-bold text-slate-400 flex items-center gap-1.5">
                   <Terminal className="w-3.5 h-3.5" /> Output Terminal
                 </span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                  runResult.isSuccessful ? 'bg-emerald-950 text-emerald-400' : 'bg-rose-950 text-rose-400'
-                }`}>
-                  {runResult.status}
-                </span>
+                {running ? (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-300">
+                    <div className="w-2.5 h-2.5 border-2 border-slate-400/40 border-t-slate-300 rounded-full animate-spin" />
+                    Running…
+                  </span>
+                ) : (
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                    runResult?.status === 'ACCEPTED'
+                      ? 'bg-emerald-950 text-emerald-400'
+                      : 'bg-rose-950 text-rose-400'
+                  }`}>
+                    {runResult?.status}
+                  </span>
+                )}
               </div>
-              {runResult.stdout && (
-                <div>
-                  <div className="text-slate-400 text-[11px] mb-1">Standard Output:</div>
-                  <pre className="text-emerald-300 whitespace-pre-wrap">{runResult.stdout}</pre>
-                </div>
-              )}
-              {runResult.stderr && (
-                <div>
-                  <div className="text-rose-400 text-[11px] mb-1">Error Details:</div>
-                  <pre className="text-rose-300 whitespace-pre-wrap">{runResult.stderr}</pre>
-                </div>
-              )}
-              {runResult.friendlyErrorHint && (
-                <div className="p-2.5 rounded-xl bg-amber-950/60 border border-amber-700/50 text-amber-300 text-xs">
-                  💡 {runResult.friendlyErrorHint}
-                </div>
-              )}
-              {runResult.isSuccessful && !runResult.isFirstSuccess && (
-                <div className="text-slate-400 text-[11px] italic pt-1">
-                  ✓ Program executed cleanly. You already earned XP for this topic.
-                </div>
+
+              {!running && runResult && (
+                <>
+                  {runResult.stdout ? (
+                    <div>
+                      <div className="text-slate-400 text-[11px] mb-1">Standard Output:</div>
+                      <pre className="text-emerald-300 whitespace-pre-wrap">{runResult.stdout}</pre>
+                    </div>
+                  ) : runResult.status === 'ACCEPTED' ? (
+                    <div className="text-slate-500 italic text-[11px]">
+                      ✓ Program ran successfully (no output printed).
+                    </div>
+                  ) : null}
+
+                  {runResult.stderr && (
+                    <div>
+                      <div className="text-rose-400 text-[11px] mb-1">Error Details:</div>
+                      <pre className="text-rose-300 whitespace-pre-wrap">{runResult.stderr}</pre>
+                    </div>
+                  )}
+
+                  {runResult.friendlyErrorHint && (
+                    <div className="p-2.5 rounded-xl bg-amber-950/60 border border-amber-700/50 text-amber-300 text-xs">
+                      💡 {runResult.friendlyErrorHint}
+                    </div>
+                  )}
+
+                  {runResult.status === 'ACCEPTED' && !runResult.isFirstSuccess && (
+                    <div className="text-slate-400 text-[11px] italic pt-1">
+                      ✓ Program executed cleanly. You already earned XP for this topic.
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

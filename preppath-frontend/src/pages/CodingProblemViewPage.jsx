@@ -20,21 +20,12 @@ export default function CodingProblemViewPage() {
   const [submissionResult, setSubmissionResult] = useState(null);
   const [activeTab, setActiveTab] = useState('description');
 
-  const getStarterCode = (problemData, lang) => {
-    if (!problemData) return '';
-    if (lang === 'c')      return problemData.starterCodeC      ?? '';
-    if (lang === 'java')   return problemData.starterCodeJava   ?? '';
-    if (lang === 'python') return problemData.starterCodePython ?? '';
-    return '';
-  };
-
   useEffect(() => {
     const fetchProblem = async () => {
       try {
         const res = await api.get(`/coding/problems/${problemId}`);
         setProblem(res.data);
-        // Pre-fill with starter code for the current language
-        setCode(getStarterCode(res.data, language));
+        setCode(''); // blank editor — user writes their own solution
         setCustomInput(res.data.sampleInput || '');
       } catch (err) {
         console.error('Failed to load problem:', err);
@@ -45,8 +36,7 @@ export default function CodingProblemViewPage() {
 
   const handleLanguageChange = (newLang) => {
     setLanguage(newLang);
-    // Switch starter code for the newly selected language
-    setCode(getStarterCode(problem, newLang));
+    setCode(''); // blank on language switch
   };
 
   const handleRun = async () => {
@@ -242,11 +232,20 @@ export default function CodingProblemViewPage() {
             <div className="h-44 bg-slate-900 rounded-2xl p-4 text-slate-200 text-xs font-mono overflow-y-auto flex flex-col">
               <div className="font-bold text-slate-400 mb-2 border-b border-slate-800 pb-1 flex items-center justify-between">
                 <span>Output Console</span>
-                {submissionResult && (
+                {(running || submitting) ? (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-300">
+                    <div className="w-2.5 h-2.5 border-2 border-slate-400/40 border-t-slate-300 rounded-full animate-spin" />
+                    {submitting ? 'Submitting…' : 'Running…'}
+                  </span>
+                ) : submissionResult ? (
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${submissionResult.status === 'ACCEPTED' ? 'bg-emerald-950 text-emerald-400' : 'bg-rose-950 text-rose-400'}`}>
                     {submissionResult.status}
                   </span>
-                )}
+                ) : output ? (
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${output.status === 'ACCEPTED' ? 'bg-emerald-950 text-emerald-400' : 'bg-rose-950 text-rose-400'}`}>
+                    {output.status}
+                  </span>
+                ) : null}
               </div>
 
               {/* Execution / Submission Details */}
@@ -265,14 +264,16 @@ export default function CodingProblemViewPage() {
                 </div>
               ) : output ? (
                 <div className="space-y-1">
-                  {output.compileOutput && (
-                    <div className="text-rose-400 whitespace-pre-wrap">{output.compileOutput}</div>
-                  )}
+                  {output.stdout ? (
+                    <div className="text-emerald-300 whitespace-pre-wrap">{output.stdout}</div>
+                  ) : output.status === 'ACCEPTED' ? (
+                    <div className="text-slate-500 italic">✓ Program ran successfully (no output printed).</div>
+                  ) : null}
                   {output.stderr && (
                     <div className="text-rose-400 whitespace-pre-wrap">{output.stderr}</div>
                   )}
-                  {output.stdout && (
-                    <div className="text-slate-100 whitespace-pre-wrap">{output.stdout}</div>
+                  {output.compileOutput && (
+                    <div className="text-rose-400 whitespace-pre-wrap">{output.compileOutput}</div>
                   )}
                   {output.time && (
                     <div className="text-slate-500 text-[10px]">Execution time: {output.time}s</div>
