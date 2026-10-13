@@ -8,18 +8,24 @@ export default function CodingRoadmapPage() {
   const navigate = useNavigate();
   const [levels, setLevels] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchLevels = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.get('/coding/levels');
+      setLevels(res.data);
+    } catch (err) {
+      console.error('Failed to load coding levels:', err);
+      const msg = err.response?.data?.message || err.message || 'Failed to load coding roadmap.';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchLevels = async () => {
-      try {
-        const res = await api.get('/coding/levels');
-        setLevels(res.data);
-      } catch (err) {
-        console.error('Failed to load coding levels:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchLevels();
   }, []);
 
@@ -48,11 +54,40 @@ export default function CodingRoadmapPage() {
           </p>
         </div>
 
+        {error && (
+          <div className="p-6 rounded-3xl bg-rose-50 border border-rose-200 text-rose-800 text-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+            <div>
+              <p className="font-bold text-rose-900">⚠️ Unable to load coding levels</p>
+              <p className="text-xs text-rose-700 mt-0.5">{error}</p>
+            </div>
+            <button
+              onClick={fetchLevels}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition shadow-sm"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {loading ? (
           <div className="space-y-6">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-44 bg-slate-100 rounded-3xl animate-pulse" />
             ))}
+          </div>
+        ) : levels.length === 0 && !error ? (
+          <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 shadow-soft space-y-3">
+            <Code2 className="w-10 h-10 text-slate-300 mx-auto" />
+            <h3 className="text-slate-700 font-bold text-base">No coding roadmap topics found</h3>
+            <p className="text-slate-400 text-xs max-w-sm mx-auto">
+              Make sure your database has completed all Flyway migrations on the backend.
+            </p>
+            <button
+              onClick={fetchLevels}
+              className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-xs transition"
+            >
+              Reload
+            </button>
           </div>
         ) : (
           <div className="space-y-8">

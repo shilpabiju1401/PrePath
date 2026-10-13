@@ -20,6 +20,7 @@ export default function CodingTopicLearnPage() {
 
   const [topic, setTopic] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeLang, setActiveLang] = useState('python');
 
   // Playground state
@@ -33,22 +34,26 @@ export default function CodingTopicLearnPage() {
   const [nextLoading, setNextLoading] = useState(false);
   const [nextXpPopup, setNextXpPopup] = useState(null); // null | { xpAwarded, alreadyCompleted }
 
+  const fetchTopic = async () => {
+    setLoading(true);
+    setError(null);
+    setRunResult(null);
+    setShowRunCelebration(false);
+    setNextXpPopup(null);
+    try {
+      const res = await api.get(`/coding/topics/${topicId}`);
+      setTopic(res.data);
+      setUserCode('');
+    } catch (err) {
+      console.error('Failed to load topic:', err);
+      const msg = err.response?.data?.message || err.message || 'Failed to load topic.';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchTopic = async () => {
-      setLoading(true);
-      setRunResult(null);
-      setShowRunCelebration(false);
-      setNextXpPopup(null);
-      try {
-        const res = await api.get(`/coding/topics/${topicId}`);
-        setTopic(res.data);
-        setUserCode('');
-      } catch (err) {
-        console.error('Failed to load topic:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchTopic();
   }, [topicId]);
 
@@ -128,10 +133,36 @@ export default function CodingTopicLearnPage() {
     );
   }
 
-  if (!topic) {
+  if (error || !topic) {
     return (
       <AppLayout>
-        <div className="text-center py-16 text-slate-500">Topic not found.</div>
+        <div className="max-w-xl mx-auto text-center py-20 px-4 space-y-4">
+          <div className="w-14 h-14 rounded-3xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200 shadow-sm">
+            <AlertCircle className="w-7 h-7" />
+          </div>
+          <h2 className="text-xl font-extrabold text-slate-800">
+            {error || 'Topic Not Found'}
+          </h2>
+          <p className="text-sm text-slate-500 max-w-md mx-auto">
+            {error?.toLowerCase().includes('locked')
+              ? 'This topic is locked. Complete all topics in the previous level on your roadmap to unlock it!'
+              : 'Unable to load this topic from the server. Please check your connection or return to the roadmap.'}
+          </p>
+          <div className="pt-2 flex items-center justify-center gap-3">
+            <button
+              onClick={() => navigate('/coding')}
+              className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-sm transition shadow-sm"
+            >
+              ← Back to Roadmap
+            </button>
+            <button
+              onClick={fetchTopic}
+              className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
       </AppLayout>
     );
   }
