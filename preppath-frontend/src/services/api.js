@@ -1,7 +1,29 @@
 import axios from 'axios';
 
-// Base API configuration pointing to Spring Boot backend
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+// Robust API URL normalization:
+// Handles missing '/api', trailing slashes, and http->https redirects
+let rawBase = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
+
+// Strip trailing slash
+if (rawBase.endsWith('/')) {
+  rawBase = rawBase.slice(0, -1);
+}
+
+// Upgrade http:// to https:// for production to prevent 301 redirects changing POST to GET (405 error)
+if (rawBase.startsWith('http://') && !rawBase.includes('localhost') && !rawBase.includes('127.0.0.1')) {
+  rawBase = rawBase.replace('http://', 'https://');
+}
+
+// If user provided backend domain without /api (e.g. https://xyz.onrender.com), auto-append /api
+if (rawBase !== '/api' && !rawBase.endsWith('/api')) {
+  rawBase = `${rawBase}/api`;
+}
+
+if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && rawBase === '/api') {
+  console.warn('⚠️ VITE_API_BASE_URL is not set in Vercel! Requests are hitting Vercel static server instead of your Render backend.');
+}
+
+const API_BASE_URL = rawBase;
 
 const api = axios.create({
   baseURL: API_BASE_URL,

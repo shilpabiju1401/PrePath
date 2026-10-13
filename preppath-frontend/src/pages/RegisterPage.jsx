@@ -46,10 +46,12 @@ export default function RegisterPage() {
       navigate('/dashboard', { replace: true });
     } catch (err) {
       console.error('Registration error details:', err);
-      const msg = err.response?.data?.message 
-        || (err.response?.status ? `Error ${err.response.status}: ${err.response.statusText}` : null)
-        || err.message 
-        || 'Registration failed. Please try again.';
+      let msg = err.response?.data?.message;
+      if (!msg && err.response?.status === 405) {
+        msg = 'Error 405 (Method Not Allowed): VITE_API_BASE_URL is missing or incorrect in Vercel. Please check your Vercel Environment Variables!';
+      } else if (!msg) {
+        msg = err.message || 'Registration failed. Please try again.';
+      }
       setError(msg);
     } finally {
       setLoading(false);

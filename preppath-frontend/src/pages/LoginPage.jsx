@@ -43,10 +43,12 @@ export default function LoginPage() {
       navigate(from, { replace: true });
     } catch (err) {
       console.error('Login error:', err);
-      const msg = err.response?.data?.message 
-        || (err.response?.status ? `Error ${err.response.status}: ${err.response.statusText}` : null)
-        || err.message 
-        || 'Invalid email or password. Please try again.';
+      let msg = err.response?.data?.message;
+      if (!msg && err.response?.status === 405) {
+        msg = 'Error 405 (Method Not Allowed): VITE_API_BASE_URL is missing or incorrect in Vercel. Requests are hitting Vercel instead of your Render backend. Please set VITE_API_BASE_URL in Vercel settings and redeploy!';
+      } else if (!msg) {
+        msg = err.message || 'Invalid email or password. Please try again.';
+      }
       setError(msg);
     } finally {
       setLoading(false);
