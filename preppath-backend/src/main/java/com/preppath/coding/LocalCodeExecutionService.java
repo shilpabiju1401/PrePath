@@ -38,14 +38,22 @@ public class LocalCodeExecutionService {
     // PYTHON EXECUTION
     // ─────────────────────────────────────────────────────────────
     private Judge0Service.ExecutionResult runPython(String code, String stdin) {
+        String pythonCmd = resolvePythonCmd();
+        if (pythonCmd == null) {
+            Judge0Service.ExecutionResult res = new Judge0Service.ExecutionResult();
+            res.status = "COMPILATION_ERROR";
+            res.compileOutput = "Python 3 is not installed on this server environment.\n\n"
+                    + "💡 Fix: If you are hosting on Render, deploy with 'Docker' using our updated Dockerfile so Python 3 is pre-installed automatically, or add a free Judge0 API key.";
+            res.time = 0.0;
+            return res;
+        }
+
         Path tempDir = null;
         try {
             tempDir = Files.createTempDirectory("pp_py_");
             Path scriptFile = tempDir.resolve("script.py");
             Files.writeString(scriptFile, code, StandardCharsets.UTF_8);
 
-            // Prefer 'py' launcher if available, else 'python'
-            String pythonCmd = isCommandAvailable("py") ? "py" : "python";
             ProcessBuilder pb = new ProcessBuilder(pythonCmd, scriptFile.toAbsolutePath().toString());
             pb.directory(tempDir.toFile());
 
@@ -74,27 +82,34 @@ public class LocalCodeExecutionService {
             Path sourceFile = tempDir.resolve(className + ".java");
             Files.writeString(sourceFile, code, StandardCharsets.UTF_8);
 
-            // 1. Compile with javac
-            long startTime = System.currentTimeMillis();
-            ProcessBuilder compilePb = new ProcessBuilder("javac", sourceFile.toAbsolutePath().toString());
-            compilePb.directory(tempDir.toFile());
-            Process compileProc = compilePb.start();
+            // If javac is available, compile then run; otherwise use Java 11+ single-file execution: java Source.java
+            if (isCommandAvailable("javac")) {
+                long startTime = System.currentTimeMillis();
+                ProcessBuilder compilePb = new ProcessBuilder("javac", sourceFile.toAbsolutePath().toString());
+                compilePb.directory(tempDir.toFile());
+                Process compileProc = compilePb.start();
 
-            String compileErr = readStream(compileProc.getErrorStream());
-            boolean compiled = compileProc.waitFor(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                String compileErr = readStream(compileProc.getErrorStream());
+                boolean compiled = compileProc.waitFor(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-            if (!compiled || compileProc.exitValue() != 0) {
-                Judge0Service.ExecutionResult res = new Judge0Service.ExecutionResult();
-                res.status = "COMPILATION_ERROR";
-                res.compileOutput = !compileErr.isEmpty() ? compileErr : "Java compilation timed out or failed.";
-                res.time = (System.currentTimeMillis() - startTime) / 1000.0;
-                return res;
+                if (!compiled || compileProc.exitValue() != 0) {
+                    Judge0Service.ExecutionResult res = new Judge0Service.ExecutionResult();
+                    res.status = "COMPILATION_ERROR";
+                    res.compileOutput = !compileErr.isEmpty() ? compileErr : "Java compilation timed out or failed.";
+                    res.time = (System.currentTimeMillis() - startTime) / 1000.0;
+                    return res;
+                }
+
+                // Run compiled bytecode
+                ProcessBuilder runPb = new ProcessBuilder("java", "-cp", tempDir.toAbsolutePath().toString(), className);
+                runPb.directory(tempDir.toFile());
+                return executeProcess(runPb, stdin);
+            } else {
+                // Java 11+ single-file source-code launcher (works on bare JRE without javac!)
+                ProcessBuilder runPb = new ProcessBuilder("java", sourceFile.toAbsolutePath().toString());
+                runPb.directory(tempDir.toFile());
+                return executeProcess(runPb, stdin);
             }
-
-            // 2. Run class with java
-            ProcessBuilder runPb = new ProcessBuilder("java", "-cp", tempDir.toAbsolutePath().toString(), className);
-            runPb.directory(tempDir.toFile());
-            return executeProcess(runPb, stdin);
         } catch (Exception e) {
             Judge0Service.ExecutionResult res = new Judge0Service.ExecutionResult();
             res.status = "RUNTIME_ERROR";
@@ -110,14 +125,23 @@ public class LocalCodeExecutionService {
     // C EXECUTION (GCC)
     // ─────────────────────────────────────────────────────────────
     private Judge0Service.ExecutionResult runC(String code, String stdin) {
+        String gccCmd = resolveGccPath();
+        if (gccCmd == null) {
+            Judge0Service.ExecutionResult res = new Judge0Service.ExecutionResult();
+            res.status = "COMPILATION_ERROR";
+            res.compileOutput = "GCC (C compiler) is not installed on this server environment.\n\n"
+                    + "💡 Fix: If you are hosting on Render, deploy with 'Docker' using our updated Dockerfile so GCC is pre-installed automatically, or add a free Judge0 API key.";
+            res.time = 0.0;
+            return res;
+        }
+
         Path tempDir = null;
         try {
             tempDir = Files.createTempDirectory("pp_c_");
             Path sourceFile = tempDir.resolve("main.c");
-            Path exeFile = tempDir.resolve("main.exe");
+            Path exeFile = tempDir.resolve(isWindows() ? "main.exe" : "main.out");
             Files.writeString(sourceFile, code, StandardCharsets.UTF_8);
 
-            String gccCmd = resolveGccPath();
             long startTime = System.currentTimeMillis();
 
             // 1. Compile with GCC
@@ -223,11 +247,27 @@ public class LocalCodeExecutionService {
         return "Main";
     }
 
+    private String resolvePythonCmd() {
+        if (isCommandAvailable("python3")) return "python3";
+        if (isCommandAvailable("python")) return "python";
+        if (isCommandAvailable("py")) return "py";
+        if (new File("/usr/bin/python3").exists()) return "/usr/bin/python3";
+        if (new File("/usr/local/bin/python3").exists()) return "/usr/local/bin/python3";
+        if (new File("/usr/bin/python").exists()) return "/usr/bin/python";
+        return null;
+    }
+
     private String resolveGccPath() {
-        if (new File("C:\\MinGW\\bin\\gcc.exe").exists()) {
-            return "C:\\MinGW\\bin\\gcc.exe";
-        }
-        return "gcc";
+        if (isCommandAvailable("gcc")) return "gcc";
+        if (new File("C:\\MinGW\\bin\\gcc.exe").exists()) return "C:\\MinGW\\bin\\gcc.exe";
+        if (new File("/usr/bin/gcc").exists()) return "/usr/bin/gcc";
+        if (new File("/usr/local/bin/gcc").exists()) return "/usr/local/bin/gcc";
+        return null;
+    }
+
+    private boolean isWindows() {
+        String os = System.getProperty("os.name");
+        return os != null && os.toLowerCase().contains("win");
     }
 
     private boolean isCommandAvailable(String cmd) {
