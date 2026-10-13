@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [wakingUp, setWakingUp] = useState(false); // shown after 5s to warn of cold-start
 
   // Detect if user was redirected here because their session expired
   const sessionExpired = location.state?.sessionExpired;
@@ -30,6 +31,10 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setWakingUp(false);
+
+    // After 5 seconds of waiting, show the "waking up server" notice
+    const wakeTimer = setTimeout(() => setWakingUp(true), 5000);
 
     try {
       // POST to /api/auth/login
@@ -51,6 +56,8 @@ export default function LoginPage() {
       }
       setError(msg);
     } finally {
+      clearTimeout(wakeTimer);
+      setWakingUp(false);
       setLoading(false);
     }
   };
@@ -136,6 +143,20 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* Cold-start notice (appears after 5s if server is sleeping) */}
+            {wakingUp && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-2 text-xs text-amber-800"
+              >
+                <span className="text-base leading-none">☕</span>
+                <span>
+                  <span className="font-bold">Waking up the server…</span> The backend is on a free Render plan and spins down after inactivity. It usually takes <span className="font-bold">20–40 seconds</span> to wake up. Please wait!
+                </span>
+              </motion.div>
+            )}
+
             {/* Submit button */}
             <button
               type="submit"
@@ -143,7 +164,7 @@ export default function LoginPage() {
               className="w-full flex items-center justify-center gap-2 py-3.5 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl shadow-sm transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed text-base"
             >
               {loading ? (
-                <><div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Logging in…</>
+                <><div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> {wakingUp ? 'Waking server up…' : 'Logging in…'}</>
               ) : (
                 <>Log in <ArrowRight className="w-5 h-5" /></>
               )}

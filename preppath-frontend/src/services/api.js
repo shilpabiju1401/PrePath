@@ -28,7 +28,7 @@ const API_BASE_URL = rawBase;
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 15000,
+  timeout: 60000, // 60s — Render free tier can take up to 50s to cold-start
 });
 
 // ── Request interceptor: attach JWT token to every request ──
