@@ -10,7 +10,6 @@ spring:
     url:             ${SPRING_DATASOURCE_URL:jdbc:h2:file:./data/preppathdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;AUTO_SERVER=TRUE}
     username:        ${SPRING_DATASOURCE_USERNAME:sa}
     password:        ${SPRING_DATASOURCE_PASSWORD:}
-    driver-class-name: ${SPRING_DATASOURCE_DRIVER:org.h2.Driver}
 
   jpa:
     hibernate:
